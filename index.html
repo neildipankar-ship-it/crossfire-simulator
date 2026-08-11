@@ -373,6 +373,16 @@ try {
     font-size: 10.5px; text-transform: uppercase; letter-spacing: .9px;
     color: var(--faint); font-weight: 650;
   }
+  /* topic field + its Randomize button share a row; the input takes the slack */
+  .topic-row { display: flex; gap: 8px; align-items: stretch; }
+  .topic-row input { flex: 1; min-width: 0; }
+  .topic-row .btn { white-space: nowrap; flex: none; }
+  #randomBtn.rolling { animation: pulse 1.1s var(--ease) infinite; }
+  .topic-note {
+    display: none; font-size: 12px; color: var(--con); letter-spacing: .1px;
+  }
+  .topic-note.show { display: block; }
+
   input, select, textarea {
     background: var(--field); color: var(--text);
     border: 1px solid var(--border); border-radius: var(--r-sm);
@@ -674,7 +684,11 @@ try {
 <div class="setup">
   <div class="field">
     <label>Resolution / Topic</label>
-    <input id="topic" placeholder="e.g. The US should ban single-use plastics" />
+    <div class="topic-row">
+      <input id="topic" placeholder="e.g. The US should ban single-use plastics" />
+      <button class="btn ghost" id="randomBtn" title="Let the AI write a fresh resolution for this format">🎲 Randomize!</button>
+    </div>
+    <div class="topic-note" id="topicNote"></div>
   </div>
   <div class="field">
     <label>Format</label>
@@ -986,6 +1000,148 @@ async function callClaude({ system, messages, max_tokens = 400, json = false, te
   }
   const data = await res.json();
   return (data.choices?.[0]?.message?.content || "").trim();
+}
+
+// ---------- random topic ----------
+// Each format wants a structurally different resolution, so the generator is
+// told which shape to produce rather than asked for a generic "debate topic".
+const TOPIC_STYLE = {
+  pf: `a PUBLIC FORUM resolution: a current-events policy or judgment question a general audience can argue with no technical background. Phrase it "Resolved: <actor> should <action>." or "Resolved: <X> is <judgment>."`,
+  ld: `a LINCOLN-DOUGLAS resolution: a values proposition testing a moral principle, phrased "Resolved: <value claim>." It must invite a value/criterion framework, NOT a plan or an agency.`,
+  policy: `a POLICY resolution: a plan-focused proposition naming a concrete actor and a substantial action, phrased "Resolved: The United States federal government should substantially <action>."`,
+};
+
+// Seeding each call with a random subject area spreads the pool far more than
+// temperature alone — an unseeded model returns plastics or social media most
+// of the time.
+const TOPIC_DOMAINS = [
+  "artificial intelligence and automation", "climate and the environment",
+  "foreign policy and alliances", "education and schools",
+  "criminal justice and policing", "labor and the economy",
+  "public health and medicine", "civil liberties and privacy",
+  "space exploration and science funding", "media, platforms and democracy",
+  "international trade", "immigration and borders", "energy policy",
+  "housing and cities", "sports, arts and culture",
+];
+
+// Used when there is no API key, and as the safety net when generation fails.
+const FALLBACK_TOPICS = {
+  pf: [
+    "Resolved: The United States should ban single-use plastics.",
+    "Resolved: Social media companies should be held liable for content posted by their users.",
+    "Resolved: The benefits of nuclear energy outweigh the risks.",
+    "Resolved: Standardized testing does more harm than good in K-12 education.",
+    "Resolved: The United States should adopt a wealth tax.",
+    "Resolved: Public university tuition should be free.",
+    "Resolved: Remote work has been a net benefit for workers.",
+    "Resolved: Developed nations should increase their intake of climate refugees.",
+  ],
+  ld: [
+    "Resolved: Justice requires the recognition of animal rights.",
+    "Resolved: A just society ought not use the death penalty.",
+    "Resolved: Individual liberty ought to be valued above collective security.",
+    "Resolved: Civil disobedience in a democracy is morally justified.",
+    "Resolved: States ought to prioritize the welfare of their own citizens over that of noncitizens.",
+    "Resolved: Truth-telling is a greater moral obligation than preventing harm.",
+    "Resolved: Predictive policing is inherently unjust.",
+  ],
+  policy: [
+    "Resolved: The United States federal government should substantially increase its investment in high-speed rail.",
+    "Resolved: The United States federal government should substantially expand its public health infrastructure.",
+    "Resolved: The United States federal government should substantially reduce its military presence overseas.",
+    "Resolved: The United States federal government should substantially increase regulation of artificial intelligence development.",
+    "Resolved: The United States federal government should substantially increase its investment in water infrastructure.",
+    "Resolved: The United States federal government should substantially reform its immigration system.",
+  ],
+};
+
+function recentTopics() {
+  try {
+    const v = JSON.parse(localStorage.getItem("cf_recent_topics") || "[]");
+    return Array.isArray(v) ? v.filter(t => typeof t === "string") : [];
+  } catch { return []; }
+}
+function rememberTopic(t) {
+  const list = recentTopics().filter(x => x.toLowerCase() !== t.toLowerCase());
+  list.unshift(t);
+  localStorage.setItem("cf_recent_topics", JSON.stringify(list.slice(0, 10)));
+}
+
+function pickFallbackTopic(fmt) {
+  const recent = recentTopics().map(t => t.toLowerCase());
+  const pool = FALLBACK_TOPICS[fmt] || FALLBACK_TOPICS.pf;
+  const fresh = pool.filter(t => !recent.includes(t.toLowerCase()));
+  const from = fresh.length ? fresh : pool;   // pool exhausted — allow repeats
+  return from[Math.floor(Math.random() * from.length)];
+}
+
+// Models like to answer with preamble or wrap the line in quotes; take the
+// first non-empty line and strip the wrapping.
+function cleanTopic(raw) {
+  const line = (raw || "").split("\n").map(s => s.trim()).filter(Boolean)[0] || "";
+  return line.replace(/^["'“”‘’]+|["'“”‘’]+$/g, "").trim();
+}
+
+async function generateTopic() {
+  const domain = TOPIC_DOMAINS[Math.floor(Math.random() * TOPIC_DOMAINS.length)];
+  const avoid = recentTopics();
+  const raw = await callClaude({
+    system: `You write competitive debate resolutions. Reply with the resolution and NOTHING else — no preamble, no commentary, no quotation marks, no markdown.`,
+    messages: [{
+      role: "user",
+      content: `Write one ${TOPIC_STYLE[state.fmt] || TOPIC_STYLE.pf}
+Subject area: ${domain}.
+It must be genuinely balanced — a well-prepared team should be able to win either side. Keep it under 20 words.` +
+        (avoid.length ? `\n\nDo NOT write any of these, or a close variation of them:\n${avoid.map(t => "- " + t).join("\n")}` : ""),
+    }],
+    max_tokens: 60,
+    temperature: 1.1,
+  });
+  return cleanTopic(raw);
+}
+
+function setTopic(t) {
+  state.topic = t;
+  $("topic").value = t;
+  $("topic").style.borderColor = "";
+  localStorage.setItem("cf_topic", t);
+}
+
+function topicNote(msg) {
+  const el = $("topicNote");
+  el.textContent = msg || "";
+  el.classList.toggle("show", !!msg);
+}
+
+async function randomizeTopic() {
+  const btn = $("randomBtn");
+  if (btn.disabled) return;
+  const label = btn.textContent;
+  btn.disabled = true;
+  btn.classList.add("rolling");
+  btn.textContent = "🎲 Rolling…";
+  $("topic").disabled = true;
+  topicNote("");
+  try {
+    let topic = "", failure = "";
+    if (getKey()) {
+      try { topic = await generateTopic(); }
+      catch (e) { failure = e.message; }
+    }
+    if (!topic) {
+      topic = pickFallbackTopic(state.fmt);
+      // Say why they got a canned topic instead of silently swapping it in.
+      topicNote(failure ? `⚠ ${failure} — used a built-in topic instead.`
+                        : "Used a built-in topic. Add a Groq key in ⚙ Settings for AI-written ones.");
+    }
+    setTopic(topic);
+    rememberTopic(topic);
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove("rolling");
+    btn.textContent = label;
+    $("topic").disabled = false;
+  }
 }
 
 // ---------- transcript rendering ----------
@@ -1608,7 +1764,12 @@ $("judgeSel").addEventListener("change", (e) => {
   if (state.running) addMsg("system", "", `⚖️ Judge switched to: ${JUDGE[state.judge].name}. Your next turn is scored on this judge's standard.`);
 });
 
-$("topic").addEventListener("input", (e) => { state.topic = e.target.value; localStorage.setItem("cf_topic", state.topic); });
+$("topic").addEventListener("input", (e) => {
+  state.topic = e.target.value;
+  localStorage.setItem("cf_topic", state.topic);
+  topicNote("");
+});
+$("randomBtn").addEventListener("click", randomizeTopic);
 $("caseText").addEventListener("input", (e) => { state.userCase = e.target.value; localStorage.setItem("cf_case", state.userCase); });
 
 $("caseBtn").addEventListener("click", () => {
