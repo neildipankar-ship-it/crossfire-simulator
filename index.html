@@ -5,11 +5,21 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Crossfire &amp; Grand Cross Simulator</title>
 <script>
-// Applied before first paint so a pinned Light/Dark choice never flashes
-// the other theme. "system" stores no attribute and follows the OS.
+// Applied before first paint so a pinned Light/Dark/Custom choice never
+// flashes another theme. "system" stores no attribute and follows the OS.
+// A custom theme's generated tokens are cached as inline-style text so this
+// runs without the palette generator having loaded yet.
 try {
   var t = localStorage.getItem("cf_theme");
-  if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t);
+  if (t === "light" || t === "dark") {
+    document.documentElement.setAttribute("data-theme", t);
+  } else if (t === "custom") {
+    var v = localStorage.getItem("cf_theme_vars");
+    if (v) {
+      document.documentElement.setAttribute("data-theme", "custom");
+      document.documentElement.style.cssText = v;
+    }
+  }
 } catch (e) {}
 </script>
 <style>
@@ -100,6 +110,7 @@ try {
     --scroll-thumb-hi: #3c3c43;
     --title-1: var(--accent); --title-2: #f2cd8c;
     --hairline: rgba(255, 255, 255, .055);
+    --sel: rgba(226, 165, 76, .3);
     --ring: 0 0 0 3px rgba(226, 165, 76, .18);
     --field-inset: inset 0 1px 2px rgba(0, 0, 0, .6);
     --sh-1: 0 1px 2px rgba(0, 0, 0, .5);
@@ -110,13 +121,24 @@ try {
 
     --ease: cubic-bezier(.34, .12, .26, 1);
     --r-sm: 8px;
-    --r-md: 11px;
-    --r-lg: 14px;
+    --r-md: 12px;
+    --r-lg: 16px;
 
     --font: "Segoe UI Variable Text", "Segoe UI", ui-sans-serif, system-ui,
             -apple-system, Roboto, Helvetica, Arial, sans-serif;
+    /* Display serif for headings, the ring numerals and grades. New York on
+       Apple, Georgia on Windows. Kept at >=18px, where the heavier Georgia
+       stroke reads as deliberate rather than muddy. */
+    --serif: ui-serif, "New York", Georgia, "Iowan Old Style",
+             "Times New Roman", serif;
     --mono: ui-monospace, "Cascadia Mono", "Cascadia Code", Consolas,
             "SF Mono", "Liberation Mono", monospace;
+
+    /* Both derive from tokens every theme already sets, so Light, Dark,
+       System AND a generated Custom palette all get them for free — no
+       per-theme entries to keep in sync. */
+    --swash: var(--accent);
+    --ring-track: color-mix(in srgb, var(--text) 12%, transparent);
   }
 
   /* ---- LIGHT PALETTE ---- */
@@ -186,6 +208,7 @@ try {
       --scroll-thumb-hi: #a8a8b4;
       --title-1: #8a5a0c; --title-2: #a87a1c;
       --hairline: rgba(255, 255, 255, .9);
+      --sel: rgba(154, 103, 16, .25);
       --ring: 0 0 0 3px rgba(154, 103, 16, .22);
       --field-inset: inset 0 1px 2px rgba(15, 15, 25, .05);
       --sh-1: 0 1px 2px rgba(20, 20, 35, .1);
@@ -261,6 +284,7 @@ try {
     --scroll-thumb-hi: #a8a8b4;
     --title-1: #8a5a0c; --title-2: #a87a1c;
     --hairline: rgba(255, 255, 255, .9);
+    --sel: rgba(154, 103, 16, .25);
     --ring: 0 0 0 3px rgba(154, 103, 16, .22);
     --field-inset: inset 0 1px 2px rgba(15, 15, 25, .05);
     --sh-1: 0 1px 2px rgba(20, 20, 35, .1);
@@ -285,7 +309,7 @@ try {
     letter-spacing: .1px;
     display: flex; flex-direction: column;
   }
-  ::selection { background: rgba(226, 165, 76, .3); }
+  ::selection { background: var(--sel); }
 
   /* scrollbars */
   * { scrollbar-width: thin; scrollbar-color: var(--scroll-thumb) transparent; }
@@ -297,6 +321,41 @@ try {
   }
   *::-webkit-scrollbar-thumb:hover { background: var(--scroll-thumb-hi); background-clip: content-box; }
 
+  /* ---------- the eyebrow / serif / swash heading stack ----------
+     A small wide-tracked uppercase label above a serif heading, with a
+     hand-drawn underline beneath it. Used for every section title. */
+  .eyebrow {
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: .12em;
+    color: var(--faint); font-weight: 650; line-height: 1.4;
+  }
+  .section-head { margin: 0 0 16px; }
+  .section-head .eyebrow { margin-bottom: 3px; }
+  .section-head h2 {
+    font-family: var(--serif); font-size: 25px; font-weight: 600;
+    line-height: 1.15; margin: 0; color: var(--text); letter-spacing: -.2px;
+  }
+  .section-head .swash {
+    display: block; width: 74px; height: 7px; margin-top: 2px;
+    color: var(--swash); overflow: visible;
+  }
+  .section-head .sub {
+    display: block; margin-top: 7px; font-size: 12px; color: var(--faint);
+    line-height: 1.45; font-weight: 400;
+  }
+
+  /* circular icon button — gear, dialog close */
+  .icon-btn {
+    width: 38px; height: 38px; flex-shrink: 0; border-radius: 50%;
+    display: grid; place-items: center; cursor: pointer; font: inherit; font-size: 15px;
+    background: linear-gradient(165deg, var(--panel3), var(--panel2));
+    color: var(--text); border: 1px solid var(--border);
+    box-shadow: var(--sh-1), inset 0 1px 0 var(--hairline);
+    transition: border-color .16s var(--ease), filter .16s var(--ease), transform .14s var(--ease);
+  }
+  .icon-btn:hover { border-color: var(--border-strong); filter: brightness(1.08); }
+  .icon-btn:active { transform: scale(.94); }
+  .icon-btn:focus-visible { outline: none; box-shadow: var(--ring); }
+
   /* ---------- header ---------- */
   header {
     position: relative;
@@ -304,7 +363,7 @@ try {
     backdrop-filter: blur(14px) saturate(1.1);
     border-bottom: 1px solid var(--border-soft);
     box-shadow: inset 0 1px 0 var(--hairline), 0 1px 0 rgba(0, 0, 0, .06);
-    padding: 12px 20px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    padding: 13px 20px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
     z-index: 5;
   }
   header::after {
@@ -314,16 +373,31 @@ try {
   }
   :root[data-theme="light"] header::after { display: none; }
   @media (prefers-color-scheme: light) {
-    :root:not([data-theme="dark"]) header::after { display: none; }
+    :root:not([data-theme="dark"]):not([data-theme="custom"]) header::after { display: none; }
   }
+  /* custom themes carry their own hairline (hidden on light-based ones) */
+  :root[data-theme="custom"] header::after {
+    background: linear-gradient(90deg, transparent, var(--head-glow), var(--hairline), transparent);
+    display: var(--head-line, block);
+  }
+  /* crest slot — the circular badge in the top-left corner */
+  .crest {
+    width: 42px; height: 42px; flex-shrink: 0; border-radius: 50%;
+    display: grid; place-items: center; font-size: 19px; line-height: 1;
+    background: linear-gradient(165deg, var(--panel3), var(--panel));
+    border: 1px solid var(--border-strong);
+    box-shadow: var(--sh-1), inset 0 1px 0 var(--hairline);
+  }
+  .titles { min-width: 0; }
   header h1 {
-    font-size: 16.5px; margin: 0; font-weight: 650; letter-spacing: -.1px;
-    display: flex; align-items: center; gap: 8px;
-  }
-  header h1 span {
+    font-family: var(--serif); font-size: 22px; margin: 0; font-weight: 600;
+    letter-spacing: -.2px; line-height: 1.1;
     background: linear-gradient(95deg, var(--title-1), var(--title-2));
     -webkit-background-clip: text; background-clip: text; color: transparent;
   }
+  .crumbs { margin-top: 3px; display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+  .crumbs .sep { color: var(--border-strong); }
+  .crumbs b { font-weight: 650; color: var(--muted); }
 
   /* ---------- theme switch ---------- */
   .appearance { display: flex; align-items: center; gap: 8px; }
@@ -338,7 +412,33 @@ try {
   }
   :root[data-theme="light"] .modes { background: rgba(0, 0, 0, .05); }
   @media (prefers-color-scheme: light) {
-    :root:not([data-theme="dark"]) .modes { background: rgba(0, 0, 0, .05); }
+    :root:not([data-theme="dark"]):not([data-theme="custom"]) .modes { background: rgba(0, 0, 0, .05); }
+  }
+  :root[data-theme="custom"] .modes { background: var(--well); }
+
+  /* ---------- custom colour picker ---------- */
+  .swatch {
+    position: relative; width: 30px; height: 30px; flex: 0 0 auto;
+    border-radius: 50%; overflow: hidden; cursor: pointer;
+    border: 1px solid var(--border-strong);
+    box-shadow: var(--sh-1), inset 0 1px 0 var(--hairline);
+    transition: transform .14s var(--ease), box-shadow .18s var(--ease);
+  }
+  .swatch:hover { transform: translateY(-1px); box-shadow: var(--sh-2), inset 0 1px 0 var(--hairline); }
+  .swatch:focus-within { box-shadow: var(--ring); }
+  /* the native colour input fills the chip, so the chip *is* the swatch and
+     clicking anywhere on it opens the OS colour wheel */
+  .swatch input[type="color"] {
+    position: absolute; inset: -25%; width: 150%; height: 150%;
+    padding: 0; border: none; background: transparent; cursor: pointer;
+    appearance: none; -webkit-appearance: none;
+  }
+  .swatch input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+  .swatch input[type="color"]::-webkit-color-swatch { border: none; border-radius: 0; }
+  .swatch input[type="color"]::-moz-color-swatch { border: none; }
+  .seg button.on.custom {
+    background: linear-gradient(180deg, var(--accent-lift), var(--accent));
+    color: var(--on-accent);
   }
   .mode-btn {
     background: transparent; color: var(--muted); border: 1px solid transparent;
@@ -434,7 +534,9 @@ try {
   .btn:disabled { opacity: .4; cursor: not-allowed; transform: none; box-shadow: none; filter: grayscale(.3); }
 
   /* ---------- transcript ---------- */
-  .transcript { flex: 1; overflow-y: auto; padding: 22px 20px; display: flex; flex-direction: column; gap: 12px; }
+  .stage-head { padding: 18px 22px 0; flex-shrink: 0; }
+  .stage-head .section-head { margin: 0; }
+  .transcript { flex: 1; overflow-y: auto; padding: 18px 20px 22px; display: flex; flex-direction: column; gap: 12px; }
   .msg {
     max-width: 78%; padding: 11px 14px; border-radius: var(--r-lg); position: relative;
     white-space: pre-wrap; word-wrap: break-word; font-size: 14.5px; line-height: 1.55;
@@ -443,8 +545,8 @@ try {
   }
   @keyframes rise { from { opacity: 0; transform: translateY(7px) scale(.995); } to { opacity: 1; transform: none; } }
   .msg .name {
-    font-size: 10.5px; font-weight: 750; text-transform: uppercase; letter-spacing: .9px;
-    margin-bottom: 4px; opacity: .95;
+    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .12em;
+    margin-bottom: 5px;
   }
   .msg.you {
     align-self: flex-end; border-radius: var(--r-lg) var(--r-lg) 5px var(--r-lg);
@@ -481,24 +583,58 @@ try {
     box-shadow: 0 -12px 28px -22px rgba(0, 0, 0, .5);
   }
   .composer textarea { flex: 1; resize: none; min-height: 46px; max-height: 140px; line-height: 1.5; }
-  .composer .col { display: flex; flex-direction: column; gap: 6px; }
+
+  /* ---------- the ring ----------
+     One component, two sizes: the crossfire clock counting a round down, and
+     the judge's score for the last answer. Both set a serif numeral inside a
+     thin circular track. */
+  .ring { position: relative; display: grid; place-items: center; flex-shrink: 0; }
+  .ring svg { display: block; transform: rotate(-90deg); }
+  .ring svg circle { fill: none; stroke-linecap: round; }
+  .ring .track { stroke: var(--ring-track); }
+  .ring .value {
+    stroke: var(--accent);
+    transition: stroke-dashoffset .6s var(--ease), stroke .3s var(--ease);
+  }
+  .ring .face {
+    position: absolute; inset: 0; display: grid; place-content: center;
+    text-align: center; gap: 2px;
+  }
+  .ring .face .n {
+    font-family: var(--serif); font-weight: 600; line-height: 1;
+    font-variant-numeric: tabular-nums; color: var(--text);
+    transition: color .3s var(--ease);
+  }
+  .ring .face .u {
+    font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--faint); font-weight: 650;
+  }
+  .ring.lg { width: 172px; height: 172px; }
+  .ring.lg .face .n { font-size: 42px; }
+  .ring.sm { width: 118px; height: 118px; }
+  .ring.sm .face .n { font-size: 34px; }
+  .ring.low .value { stroke: var(--con); }
+  .ring.low .face .n { color: var(--con); animation: tick 1s ease-in-out infinite; }
 
   /* ---------- judge meter ---------- */
-  aside h2 {
-    font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted);
-    margin: 0 0 14px; font-weight: 700; display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap;
+  .meter { margin-bottom: 15px; }
+  .meter .top {
+    display: flex; justify-content: space-between; align-items: baseline;
+    gap: 8px; margin-bottom: 6px;
   }
-  aside h2 .sub {
-    text-transform: none; letter-spacing: .1px; font-size: 11.5px; color: var(--faint);
-    font-weight: 400; flex-basis: 100%;
+  .meter .top b {
+    font-weight: 650; color: var(--meter-label); font-size: 10.5px;
+    text-transform: uppercase; letter-spacing: .1em;
   }
-  .meter { margin-bottom: 14px; }
-  .meter .top { display: flex; justify-content: space-between; font-size: 12.5px; margin-bottom: 6px; }
-  .meter .top b { font-weight: 600; color: var(--meter-label); }
-  .meter .top span { font-variant-numeric: tabular-nums; color: var(--muted); font-weight: 600; }
+  .meter .top > span {
+    font-family: var(--serif); font-size: 18px; font-weight: 600;
+    font-variant-numeric: tabular-nums; color: var(--text); line-height: 1;
+  }
+  /* the judge-specific qualifier inside a meter label, e.g. "(vs jargon)" */
+  #sub-jargon { font-weight: 400; color: var(--faint); }
   .bar {
-    height: 8px; background: var(--bar-track); border-radius: 999px; overflow: hidden;
-    box-shadow: inset 0 0 0 1px rgba(127, 127, 140, .1), var(--field-inset);
+    height: 6px; background: var(--bar-track); border-radius: 999px; overflow: hidden;
+    box-shadow: inset 0 0 0 1px var(--border-soft);
   }
   .bar > i {
     display: block; height: 100%; width: 0; border-radius: 999px; position: relative;
@@ -509,20 +645,21 @@ try {
     background: linear-gradient(180deg, rgba(255, 255, 255, .3), rgba(255, 255, 255, 0) 60%);
   }
   .overall {
-    text-align: center; padding: 16px 14px; margin-bottom: 18px;
+    display: grid; justify-items: center; padding: 20px 14px 16px; margin-bottom: 20px;
     background: linear-gradient(165deg, var(--card-1), var(--card-2));
     border: 1px solid var(--border); border-radius: var(--r-lg);
     box-shadow: var(--sh-2), inset 0 1px 0 var(--hairline);
   }
-  .overall .num {
-    font-size: 44px; font-weight: 800; line-height: 1;
-    font-variant-numeric: tabular-nums; letter-spacing: -1.5px;
-  }
   .overall .lbl {
-    font-size: 10.5px; color: var(--faint); text-transform: uppercase;
-    letter-spacing: 1px; margin-top: 6px; font-weight: 650;
+    font-size: 10px; color: var(--faint); text-transform: uppercase;
+    letter-spacing: .12em; margin-top: 12px; font-weight: 650;
   }
-  .overall .avg { font-size: 12px; color: var(--muted); margin-top: 8px; font-variant-numeric: tabular-nums; }
+  .overall .avg { font-size: 12px; color: var(--muted); margin-top: 6px; font-variant-numeric: tabular-nums; }
+  /* Grand Cross reuses the box but shows a word, not a score */
+  .overall .word {
+    font-family: var(--serif); font-size: 27px; font-weight: 600;
+    line-height: 1.1; text-align: center;
+  }
   .tip {
     background: linear-gradient(160deg, var(--tip-1), var(--tip-2));
     border: 1px solid var(--tip-bd); border-left: 3px solid var(--accent);
@@ -582,20 +719,23 @@ try {
     box-shadow: var(--sh-3);
   }
   .card h3 {
-    margin: 0 0 10px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
-    color: var(--accent2); font-weight: 750;
+    margin: 0 0 10px; font-size: 10.5px; text-transform: uppercase; letter-spacing: .12em;
+    color: var(--accent2); font-weight: 650;
   }
   .card.fb { border-left-color: var(--accent); }
   .card.fb h3 { color: var(--accent); }
-  .card .verdict { font-size: 15.5px; font-weight: 600; margin-bottom: 12px; line-height: 1.5; }
+  .card .verdict {
+    font-family: var(--serif); font-size: 20px; font-weight: 600;
+    margin-bottom: 13px; line-height: 1.35; letter-spacing: -.1px;
+  }
   .card .grade {
-    float: right; font-size: 30px; font-weight: 800; line-height: 1; margin-left: 14px;
-    letter-spacing: -1px;
+    float: right; font-family: var(--serif); font-size: 40px; font-weight: 600;
+    line-height: 1; margin-left: 14px;
   }
   .fb-group { margin-bottom: 13px; }
   .fb-group > b {
-    font-size: 10.5px; text-transform: uppercase; letter-spacing: 1px; color: var(--faint);
-    display: block; margin-bottom: 7px; font-weight: 700;
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: .12em; color: var(--faint);
+    display: block; margin-bottom: 7px; font-weight: 650;
   }
   .fb-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }
   .fb-list li { padding-left: 22px; position: relative; font-size: 13.5px; line-height: 1.55; }
@@ -611,18 +751,15 @@ try {
   .card .contention span { color: var(--faint); }
 
   /* ---------- timer & misc ---------- */
-  .timer { display: flex; align-items: center; gap: 10px; }
-  .timer .clock {
-    font-family: var(--mono); font-variant-numeric: tabular-nums;
-    font-size: 23px; font-weight: 700; letter-spacing: .5px;
-    padding: 2px 10px; border-radius: var(--r-sm);
-    background: var(--clock-bg); border: 1px solid var(--border-soft);
+  .timer {
+    display: grid; justify-items: center; gap: 12px; margin-bottom: 20px;
+    padding: 20px 14px 16px;
+    background: linear-gradient(165deg, var(--card-1), var(--card-2));
+    border: 1px solid var(--border); border-radius: var(--r-lg);
+    box-shadow: var(--sh-2), inset 0 1px 0 var(--hairline);
   }
-  .timer .clock.low {
-    color: var(--con); border-color: var(--pen-bd);
-    background: var(--pen-bg); animation: tick 1s ease-in-out infinite;
-  }
-  @keyframes tick { 0%, 100% { opacity: 1; } 50% { opacity: .6; } }
+  .timer .under { display: flex; align-items: center; gap: 9px; }
+  @keyframes tick { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
   .steamroll { margin-top: 16px; }
   .empty {
     color: var(--muted); font-size: 13.5px; text-align: center; line-height: 1.7;
@@ -635,24 +772,32 @@ try {
   code.k { background: var(--panel2); padding: 2px 6px; border-radius: 5px; font: 12px var(--mono); }
   a { color: var(--accent2); text-decoration-color: color-mix(in srgb, var(--accent2) 40%, transparent); text-underline-offset: 2px; }
   a:hover { text-decoration-color: var(--accent2); }
-  .pill {
-    font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 999px;
-    background: var(--sys-chip); border: 1px solid var(--border-soft);
-    color: var(--muted); letter-spacing: .3px;
-  }
   .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 
-  /* ---------- settings dialog ---------- */
+  /* ---------- settings dialog ----------
+     Eyebrow section labels, one rounded card per setting, circular close
+     at the top right. */
   dialog.dlg {
-    background: linear-gradient(170deg, var(--card-1), var(--card-2));
+    background: linear-gradient(170deg, var(--panel), var(--bg));
     color: var(--text); border: 1px solid var(--border-strong);
-    border-radius: 16px; padding: 22px; max-width: 460px; width: calc(100% - 32px);
+    border-radius: 20px; padding: 22px; max-width: 470px; width: calc(100% - 32px);
     box-shadow: var(--sh-3);
   }
-  dialog.dlg h2 { margin: 0 0 16px; font-size: 17px; font-weight: 650; letter-spacing: -.1px; }
   dialog.dlg::backdrop { background: rgba(0, 0, 0, .55); backdrop-filter: blur(4px); }
   dialog.dlg[open] { animation: rise .2s var(--ease) both; }
   dialog.dlg small { line-height: 1.5; color: var(--muted); }
+  .dlg-top { display: flex; align-items: flex-start; gap: 12px; }
+  .dlg-top .section-head { flex: 1; margin-bottom: 18px; }
+  .set-group { margin-bottom: 18px; }
+  .set-group > .eyebrow { margin-bottom: 8px; }
+  .set-card {
+    background: linear-gradient(165deg, var(--card-1), var(--card-2));
+    border: 1px solid var(--border); border-radius: var(--r-md);
+    padding: 13px 14px; margin-bottom: 9px;
+    box-shadow: var(--sh-1), inset 0 1px 0 var(--hairline);
+  }
+  .set-card > b { display: block; font-weight: 650; font-size: 13.5px; margin-bottom: 3px; }
+  .set-card small { display: block; font-size: 11.5px; margin-bottom: 9px; }
 
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: .001s !important; transition-duration: .001s !important; }
@@ -660,12 +805,23 @@ try {
 </style>
 </head>
 <body>
+<!-- The swash beneath every serif heading. Defined once, referenced by <use>. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="swash" viewBox="0 0 74 7" preserveAspectRatio="none">
+    <path d="M2 4.9C13 2.3 26 1.6 37 2.9c11 1.3 24 1.9 35 .3" fill="none"
+          stroke="currentColor" stroke-width="2.3" stroke-linecap="round" />
+  </symbol>
+</svg>
+
 <header>
-  <h1>🔥 Crossfire &amp; <span>Grand Cross</span> Simulator</h1>
-  <div class="row" style="gap:6px">
-    <span class="pill" id="fmtPill">Public Forum</span>
-    <span class="pill" id="sidePill">Pro</span>
-    <span class="pill" id="judgePill">Lay judge</span>
+  <div class="crest" aria-hidden="true">🔥</div>
+  <div class="titles">
+    <h1>Crossfire &amp; Grand Cross</h1>
+    <div class="crumbs eyebrow">
+      <b id="fmtPill">Public Forum</b><span class="sep">·</span>
+      <b id="sidePill">Pro</b><span class="sep">·</span>
+      <b id="judgePill">Lay judge</b>
+    </div>
   </div>
   <div class="appearance">
     <span>Theme</span>
@@ -673,12 +829,17 @@ try {
       <button data-appearance="light">Light</button>
       <button data-appearance="dark">Dark</button>
       <button data-appearance="system">System</button>
+      <button data-appearance="custom" title="Theme the whole app around your own colour">Custom</button>
     </div>
+    <label class="swatch" id="swatch" title="Pick any colour — a light colour gives a light UI, a dark one gives a dark UI">
+      <input type="color" id="themeColor" value="#e2a54c" aria-label="Custom theme colour" />
+    </label>
   </div>
   <div class="modes">
     <button class="mode-btn active" data-mode="crossfire">Crossfire</button>
     <button class="mode-btn" data-mode="grand">Grand Cross</button>
   </div>
+  <button class="icon-btn" id="settingsBtn" title="API key &amp; model" aria-label="Settings">⚙</button>
 </header>
 
 <div class="setup">
@@ -759,19 +920,23 @@ Framework: cost-benefit analysis."></textarea>
 
 <main>
   <div class="stage">
+    <div class="stage-head">
+      <div class="section-head">
+        <div class="eyebrow">On the floor</div>
+        <h2 id="stageTitle">Crossfire</h2>
+        <svg class="swash" aria-hidden="true"><use href="#swash" /></svg>
+      </div>
+    </div>
     <div class="transcript" id="transcript">
       <div class="empty" id="emptyState">
         Enter a topic, pick your side and format, then <b>Start round</b>.<br />
         Open <b>📋 Cases</b> first to paste your own case — the opponent will question <i>your actual contentions</i> — and to let the AI write a case you can cross-examine.<br />
         When time runs out (or you hit <b>⏹ End</b>), the judge writes full post-round feedback.<br /><br />
-        Need a key? Click <b>⚙</b> below to add your <b>free Groq key</b> (no credit card — get one at console.groq.com/keys).
+        Need a key? Click <b>⚙</b> in the top right to add your <b>free Groq key</b> (no credit card — get one at console.groq.com/keys).
       </div>
     </div>
     <div class="composer">
-      <div class="col">
-        <button class="btn ghost" id="settingsBtn" title="API key &amp; model">⚙</button>
-        <button class="btn ghost" id="yieldBtn" title="Let the others speak (Grand Cross)" style="display:none">⏭</button>
-      </div>
+      <button class="btn ghost" id="yieldBtn" title="Let the others speak (Grand Cross)" style="display:none">⏭</button>
       <textarea id="input" placeholder="Answer the crossfire question… (Enter to send, Shift+Enter for newline)" disabled></textarea>
       <button class="btn" id="sendBtn" disabled>Send</button>
     </div>
@@ -779,14 +944,39 @@ Framework: cost-benefit analysis."></textarea>
 
   <aside>
     <div id="crossPanel">
-      <h2>⚖️ <span id="judgeHead">Lay Judge</span> Meter <span class="sub" id="judgeBlurb">how a non-expert judge reads you</span></h2>
-      <div class="timer" style="margin-bottom:16px">
-        <div class="clock" id="clock">3:00</div>
-        <button class="btn ghost" id="timerBtn" style="padding:6px 10px">Pause</button>
-        <span class="pill" id="timerNote">crossfire clock</span>
+      <div class="section-head">
+        <div class="eyebrow">On the clock</div>
+        <h2 id="judgeHead">Lay Judge</h2>
+        <svg class="swash" aria-hidden="true"><use href="#swash" /></svg>
+        <span class="sub" id="judgeBlurb">how a non-expert judge reads you</span>
       </div>
+
+      <div class="timer">
+        <div class="ring lg" id="clockRing">
+          <svg width="172" height="172" viewBox="0 0 172 172" aria-hidden="true">
+            <circle class="track" cx="86" cy="86" r="78" stroke-width="7" />
+            <circle class="value" cx="86" cy="86" r="78" stroke-width="7"
+                    stroke-dasharray="490.088" stroke-dashoffset="0" />
+          </svg>
+          <div class="face">
+            <div class="n" id="clock">3:00</div>
+            <div class="u" id="timerNote">crossfire clock</div>
+          </div>
+        </div>
+        <div class="under">
+          <button class="btn ghost" id="timerBtn" style="padding:6px 14px">Pause</button>
+        </div>
+      </div>
+
       <div class="overall">
-        <div class="num" id="ovNum" style="color:var(--muted)">–</div>
+        <div class="ring sm" id="scoreRing">
+          <svg width="118" height="118" viewBox="0 0 118 118" aria-hidden="true">
+            <circle class="track" cx="59" cy="59" r="52" stroke-width="6" />
+            <circle class="value" cx="59" cy="59" r="52" stroke-width="6"
+                    stroke-dasharray="326.726" stroke-dashoffset="326.726" />
+          </svg>
+          <div class="face"><div class="n" id="ovNum">–</div></div>
+        </div>
         <div class="lbl">last answer</div>
         <div class="avg" id="ovAvg">round average: –</div>
       </div>
@@ -794,16 +984,21 @@ Framework: cost-benefit analysis."></textarea>
         <div class="meter"><div class="top"><b>Logic &amp; substance</b><span id="v-logic">–</span></div><div class="bar"><i id="b-logic"></i></div></div>
         <div class="meter"><div class="top"><b>Clarity</b><span id="v-clarity">–</span></div><div class="bar"><i id="b-clarity"></i></div></div>
         <div class="meter"><div class="top"><b>Tone &amp; poise</b><span id="v-tone">–</span></div><div class="bar"><i id="b-tone"></i></div></div>
-        <div class="meter"><div class="top"><b><span id="lbl-jargon">Plain-speak</span> <span id="sub-jargon" style="color:var(--muted);font-weight:400">(vs jargon)</span></b><span id="v-jargon">–</span></div><div class="bar"><i id="b-jargon"></i></div></div>
+        <div class="meter"><div class="top"><b><span id="lbl-jargon">Plain-speak</span> <span id="sub-jargon">(vs jargon)</span></b><span id="v-jargon">–</span></div><div class="bar"><i id="b-jargon"></i></div></div>
       </div>
       <div class="tip" id="tipBox" style="display:none"><b>Judge's note:</b> <span id="tipText"></span></div>
       <ul class="penalties" id="penalties"></ul>
     </div>
 
     <div id="grandPanel" style="display:none">
-      <h2>👥 Grand Cross Floor <span class="sub">timing without steamrolling</span></h2>
+      <div class="section-head">
+        <div class="eyebrow">Four on the floor</div>
+        <h2>Grand Cross</h2>
+        <svg class="swash" aria-hidden="true"><use href="#swash" /></svg>
+        <span class="sub">timing without steamrolling</span>
+      </div>
       <div class="overall">
-        <div class="num" id="grNum" style="font-size:26px">Balanced</div>
+        <div class="word" id="grNum">Balanced</div>
         <div class="lbl">floor sharing</div>
       </div>
       <div class="meter"><div class="top"><b>Your air time</b><span id="v-you">0%</span></div><div class="bar"><i id="b-you" style="background:var(--you)"></i></div></div>
@@ -819,22 +1014,34 @@ Framework: cost-benefit analysis."></textarea>
 
 <!-- Settings dialog -->
 <dialog id="settingsDlg" class="dlg">
-  <h2>Settings</h2>
-  <div class="field" style="margin-bottom:14px">
-    <label>Groq API key (free)</label>
-    <input id="apiKey" type="password" placeholder="gsk_..." />
-    <small style="color:var(--muted);margin-top:4px">Get a free key — no credit card — at <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a>. Stored only in this browser; calls go straight from your browser to Groq.</small>
+  <div class="dlg-top">
+    <div class="section-head">
+      <div class="eyebrow">Customize</div>
+      <h2>Settings</h2>
+      <svg class="swash" aria-hidden="true"><use href="#swash" /></svg>
+    </div>
+    <button class="icon-btn" id="closeSettings" aria-label="Close settings">✕</button>
   </div>
-  <div class="field" style="margin-bottom:16px">
-    <label>Model (all free on Groq)</label>
-    <select id="model">
-      <option value="llama-3.3-70b-versatile">Llama 3.3 70B — best free opponent</option>
-      <option value="openai/gpt-oss-120b">GPT-OSS 120B — strong reasoning</option>
-      <option value="llama-3.1-8b-instant">Llama 3.1 8B — fastest</option>
-    </select>
+
+  <div class="set-group">
+    <div class="eyebrow">Opponent engine</div>
+    <div class="set-card">
+      <b>Groq API key</b>
+      <small>Free, no credit card — get one at <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a>. Stored only in this browser; calls go straight from here to Groq.</small>
+      <input id="apiKey" type="password" placeholder="gsk_..." style="width:100%" />
+    </div>
+    <div class="set-card">
+      <b>Model</b>
+      <small>All free on Groq.</small>
+      <select id="model" style="width:100%">
+        <option value="llama-3.3-70b-versatile">Llama 3.3 70B — best free opponent</option>
+        <option value="openai/gpt-oss-120b">GPT-OSS 120B — strong reasoning</option>
+        <option value="llama-3.1-8b-instant">Llama 3.1 8B — fastest</option>
+      </select>
+    </div>
   </div>
+
   <div class="row" style="justify-content:flex-end">
-    <button class="btn ghost" id="closeSettings">Close</button>
     <button class="btn" id="saveSettings">Save</button>
   </div>
 </dialog>
@@ -855,7 +1062,8 @@ const state = {
   aiCase: null,       // {framework, contentions:[{title,warrant,impact,evidence}]}
   dir: "ai",          // who asks: "ai" | "you" | "both"
   judge: "lay",       // judge persona: "lay" | "hs" | "pro"
-  appearance: "system", // theme: "light" | "dark" | "system"
+  appearance: "system", // theme: "light" | "dark" | "system" | "custom"
+  themeColor: "#e2a54c", // seed colour for the "custom" theme
   running: false,
   convo: [],          // API message history for the crossfire opponent
   scores: [],         // per-answer overall scores for the round average
@@ -866,6 +1074,7 @@ const state = {
   gConsecutiveYou: 0,
   // timer
   timeLeft: 180,
+  timeTotal: 180,     // denominator for the clock ring
   timerId: null,
   timerPaused: false,
 };
@@ -940,21 +1149,225 @@ You do NOT penalize technical vocabulary or speed at all — you penalize imprec
 
 // ---------- appearance ----------
 // "system" leaves the attribute off so the CSS prefers-color-scheme rules
-// decide; "light"/"dark" pin it regardless of the OS setting.
-function applyAppearance(mode) {
-  state.appearance = (mode === "light" || mode === "dark") ? mode : "system";
-  if (state.appearance === "system") document.documentElement.removeAttribute("data-theme");
-  else document.documentElement.setAttribute("data-theme", state.appearance);
+// decide; "light"/"dark" pin it regardless of the OS setting; "custom"
+// generates a full palette from one picked colour and writes it as inline
+// custom properties on <html>. Inline wins over every stylesheet rule, so
+// neither the OS preference nor the light/dark blocks can leak into it.
+
+const DEFAULT_THEME_COLOR = "#e2a54c";
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+function normHex(hex) {
+  return /^#[0-9a-f]{6}$/i.test(hex || "") ? hex.toLowerCase() : DEFAULT_THEME_COLOR;
+}
+function hexToRgb(hex) {
+  const v = parseInt(normHex(hex).slice(1), 16);
+  return { r: (v >> 16) & 255, g: (v >> 8) & 255, b: v & 255 };
+}
+function rgbToHsl({ r, g, b }) {
+  r /= 255; g /= 255; b /= 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+  let h = 0;
+  if (d) {
+    if (max === r) h = ((g - b) / d) % 6;
+    else if (max === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    h = (h * 60 + 360) % 360;
+  }
+  const l = (max + min) / 2;
+  return { h, s: (d ? d / (1 - Math.abs(2 * l - 1)) : 0) * 100, l: l * 100 };
+}
+function hslToRgb(h, s, l) {
+  s /= 100; l /= 100;
+  const k = (n) => (n + h / 30) % 12;
+  const a = s * Math.min(l, 1 - l);
+  const f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+  return { r: Math.round(255 * f(0)), g: Math.round(255 * f(8)), b: Math.round(255 * f(4)) };
+}
+// WCAG relative luminance — decides both the base tone and every on-colour
+function lumOf({ r, g, b }) {
+  const f = (c) => { c /= 255; return c <= .03928 ? c / 12.92 : Math.pow((c + .055) / 1.055, 2.4); };
+  return .2126 * f(r) + .7152 * f(g) + .0722 * f(b);
+}
+
+// Tokens that don't depend on the picked hue: pro/con and the debater colours
+// stay recognisable (green means agreement, red means trouble) no matter what
+// colour the app is themed around.
+const NEUTRAL_TOKENS = {
+  dark: {
+    "--pro": "#45c96b", "--con": "#ff625a", "--you": "#3d7be6",
+    "--partner": "#33b45c", "--opp": "#d1544c",
+    "--pro-lift": "#59d67d", "--on-pro": "#06170b",
+    "--con-lift": "#ff7a72", "--on-con": "#1e0503",
+    "--you-1": "rgba(61,123,230,.26)", "--you-2": "rgba(61,123,230,.07)",
+    "--you-bd": "rgba(61,123,230,.45)", "--you-name": "#a4c6ff",
+    "--opp-1": "rgba(209,84,76,.24)", "--opp-2": "rgba(209,84,76,.06)",
+    "--opp-bd": "rgba(209,84,76,.45)", "--opp-name": "#ffa9a3",
+    "--pt-1": "rgba(51,180,92,.22)", "--pt-2": "rgba(51,180,92,.06)",
+    "--pt-bd": "rgba(51,180,92,.44)", "--pt-name": "#8ceaa6",
+    "--pen-bg": "rgba(255,98,90,.12)", "--pen-bd": "rgba(209,84,76,.32)", "--pen-fg": "#ffb8b2",
+    "--good-bg": "rgba(69,201,107,.13)", "--good-bd": "rgba(51,180,92,.32)", "--good-fg": "#a2e8b4",
+    "--pen-strong": "#ffffff",
+    "--sys-chip": "rgba(255,255,255,.04)",
+    "--hairline": "rgba(255,255,255,.055)",
+    "--clock-bg": "rgba(0,0,0,.7)",
+    "--well": "rgba(0,0,0,.28)",
+    "--glow-3": "rgba(255,255,255,.028)",
+    "--field-inset": "inset 0 1px 2px rgba(0,0,0,.6)",
+    "--sh-1": "0 1px 2px rgba(0,0,0,.5)",
+    "--sh-2": "0 6px 18px -6px rgba(0,0,0,.75)",
+    "--sh-3": "0 22px 60px -22px rgba(0,0,0,.95)",
+    "--head-line": "block",
+  },
+  light: {
+    "--pro": "#1c8a3c", "--con": "#c9302c", "--you": "#0b5fd0",
+    "--partner": "#1c8a3c", "--opp": "#c9302c",
+    "--pro-lift": "#23a049", "--on-pro": "#ffffff",
+    "--con-lift": "#dc453f", "--on-con": "#ffffff",
+    "--you-1": "rgba(11,95,208,.13)", "--you-2": "rgba(11,95,208,.05)",
+    "--you-bd": "rgba(11,95,208,.3)", "--you-name": "#0a4ca8",
+    "--opp-1": "rgba(201,48,44,.11)", "--opp-2": "rgba(201,48,44,.04)",
+    "--opp-bd": "rgba(201,48,44,.28)", "--opp-name": "#a5231f",
+    "--pt-1": "rgba(28,138,60,.11)", "--pt-2": "rgba(28,138,60,.04)",
+    "--pt-bd": "rgba(28,138,60,.28)", "--pt-name": "#13642c",
+    "--pen-bg": "rgba(201,48,44,.09)", "--pen-bd": "rgba(201,48,44,.26)", "--pen-fg": "#8e211d",
+    "--good-bg": "rgba(28,138,60,.09)", "--good-bd": "rgba(28,138,60,.26)", "--good-fg": "#14622c",
+    "--pen-strong": "#17171a",
+    "--sys-chip": "rgba(0,0,0,.045)",
+    "--hairline": "rgba(255,255,255,.9)",
+    "--clock-bg": "rgba(0,0,0,.05)",
+    "--well": "rgba(0,0,0,.05)",
+    "--glow-3": "rgba(0,0,0,.03)",
+    "--field-inset": "inset 0 1px 2px rgba(15,15,25,.05)",
+    "--sh-1": "0 1px 2px rgba(20,20,35,.1)",
+    "--sh-2": "0 6px 18px -6px rgba(20,20,35,.18)",
+    "--sh-3": "0 22px 60px -22px rgba(20,20,35,.3)",
+    "--head-line": "none",
+  },
+};
+
+// Builds an entire palette out of one colour. The colour's own lightness
+// decides whether the UI goes light or dark, its hue tints every surface,
+// and it becomes the accent — clamped so it stays legible as text and as fill.
+function buildPalette(hex) {
+  const { h, s, l } = rgbToHsl(hexToRgb(hex));
+  const light = lumOf(hexToRgb(hex)) > .55;
+  const round = (n) => Math.round(n * 10) / 10;
+  const col = (hue, sat, lig, a) => {
+    const parts = `${round((hue + 360) % 360)}, ${round(clamp(sat, 0, 100))}%, ${round(clamp(lig, 0, 100))}%`;
+    return a == null ? `hsl(${parts})` : `hsla(${parts}, ${a})`;
+  };
+
+  const tint = Math.min(s, light ? 42 : 32);   // how far the hue bleeds into surfaces
+  const C = (lig, sat, a) => col(h, sat, lig, a);
+  const ink = (cap) => Math.min(tint, cap);
+
+  // accent: keep enough contrast against the surfaces it sits on
+  const aS = s < 10 ? 0 : clamp(s, 32, 95);
+  const aL = light ? clamp(l, 24, 42) : clamp(l, 50, 72);
+  const accent = col(h, aS, aL);
+  const onColor = (hue, sat, lig) => {
+    const L = lumOf(hslToRgb(hue, sat, lig));
+    return (1.05 / (L + .05)) >= ((L + .05) / .055) ? "#ffffff" : col(hue, Math.min(sat, 45), 8);
+  };
+
+  // Secondary accent (selected format pills, links, card rules): a split
+  // complement, softened so a fully saturated pick doesn't put two sirens side
+  // by side, and steered out of the green/red bands where it would read as the
+  // Pro/Con colours sitting right next to it.
+  let h2 = (h + 195) % 360;
+  const near = (lo, hi) => h2 >= lo && h2 <= hi;
+  if (near(95, 165) || near(340, 360) || near(0, 25)) h2 = (h + 165) % 360;
+  const a2S = s < 10 ? 0 : clamp(s * .85, 30, 72);
+  const a2L = light ? clamp(l, 26, 44) : clamp(l, 52, 74);
+
+  const p = Object.assign({}, NEUTRAL_TOKENS[light ? "light" : "dark"], {
+    "--accent": accent,
+    "--accent-lift": col(h, aS, aL + (light ? 9 : 8)),
+    "--on-accent": onColor(h, aS, aL),
+    "--accent2": col(h2, a2S, a2L),
+    "--a2-lift": col(h2, a2S, a2L + (light ? 9 : 8)),
+    "--on-a2": onColor(h2, a2S, a2L),
+    "--judge": accent,
+    "--title-1": accent,
+    "--title-2": col(h + 16, aS, aL + (light ? 8 : 11)),
+    "--sel": col(h, aS, aL, light ? .25 : .32),
+    "--ring": `0 0 0 3px ${col(h, aS, aL, light ? .24 : .26)}`,
+    "--accent-glow": `0 2px ${light ? 8 : 10}px -3px ${col(h, aS, aL, light ? .45 : .5)}`,
+    "--accent-glow-hi": `0 6px ${light ? 14 : 16}px -4px ${col(h, aS, aL, light ? .45 : .5)}`,
+    "--head-glow": col(h, aS, aL, .55),
+    "--tip-1": col(h, aS, aL, light ? .12 : .15),
+    "--tip-2": col(h, aS, aL, .04),
+    "--tip-bd": col(h, aS, aL, light ? .28 : .3),
+    "--tip-fg": light ? col(h, Math.min(aS, 70), 24) : col(h, Math.min(aS, 45), 84),
+    "--glow-1": col(h, aS, light ? 55 : 60, light ? .05 : .075),
+    "--glow-2": col(h2, a2S, light ? 55 : 60, light ? .05 : .06),
+  });
+
+  if (light) Object.assign(p, {
+    "--bg": C(95.5, tint * .55), "--panel": C(99.5, tint * .35),
+    "--panel2": C(96.5, tint * .45), "--panel3": C(93, tint * .45),
+    "--border": C(85, tint * .4), "--border-soft": C(90, tint * .4),
+    "--border-strong": C(73, tint * .35),
+    "--text": C(11, ink(22)), "--muted": C(38, ink(16)), "--faint": C(56, ink(14)),
+    "--field": C(99.5, tint * .25), "--field-focus": C(100, tint * .25),
+    "--placeholder": C(64, ink(14)),
+    "--chrome-1": C(99.5, tint * .3, .94), "--chrome-2": C(95, tint * .45, .88),
+    "--card-1": C(99.5, tint * .3), "--card-2": C(97.5, tint * .4),
+    "--bubble-base": C(99.6, tint * .25),
+    "--meter-label": C(24, ink(18)), "--bar-track": C(89, tint * .4),
+    "--scroll-thumb": C(79, tint * .35), "--scroll-thumb-hi": C(68, tint * .35),
+  });
+  else Object.assign(p, {
+    "--bg": C(4, tint * .7), "--panel": C(7, tint * .6),
+    "--panel2": C(10.5, tint * .55), "--panel3": C(14, tint * .5),
+    "--border": C(19, tint * .45), "--border-soft": C(13, tint * .45),
+    "--border-strong": C(29, tint * .4),
+    "--text": C(94, ink(12)), "--muted": C(65, ink(10)), "--faint": C(48, ink(10)),
+    "--field": C(3.5, tint * .6), "--field-focus": C(6, tint * .6),
+    "--placeholder": C(41, ink(10)),
+    "--chrome-1": C(9.5, tint * .6, .92), "--chrome-2": C(4, tint * .6, .82),
+    "--card-1": C(11.5, tint * .55), "--card-2": C(6, tint * .55),
+    "--bubble-base": C(5.5, tint * .6),
+    "--meter-label": C(80, ink(10)), "--bar-track": C(5, tint * .5),
+    "--scroll-thumb": C(20, tint * .45), "--scroll-thumb-hi": C(28, tint * .45),
+  });
+
+  return `color-scheme:${light ? "light" : "dark"};` +
+    Object.keys(p).map(k => `${k}:${p[k]}`).join(";") + ";";
+}
+
+function applyAppearance(mode, hex, persist = true) {
+  const root = document.documentElement;
+  state.appearance = ["light", "dark", "custom"].includes(mode) ? mode : "system";
+
+  if (state.appearance === "custom") {
+    if (hex) state.themeColor = normHex(hex);
+    const css = buildPalette(state.themeColor);
+    root.setAttribute("data-theme", "custom");
+    root.style.cssText = css;
+    if (persist) {
+      localStorage.setItem("cf_theme_vars", css);
+      localStorage.setItem("cf_theme_color", state.themeColor);
+    }
+  } else {
+    root.style.cssText = "";
+    if (state.appearance === "system") root.removeAttribute("data-theme");
+    else root.setAttribute("data-theme", state.appearance);
+  }
   localStorage.setItem("cf_theme", state.appearance);
   setThemeButtons();
 }
 function setThemeButtons() {
   document.querySelectorAll("#themeSeg button").forEach(b => {
+    const custom = b.dataset.appearance === "custom";
     const on = b.dataset.appearance === state.appearance;
     b.classList.toggle("on", on);
-    b.classList.toggle("fmt", on);
+    b.classList.toggle("fmt", on && !custom);
+    b.classList.toggle("custom", custom);
     b.setAttribute("aria-pressed", on ? "true" : "false");
   });
+  if ($("themeColor").value !== state.themeColor) $("themeColor").value = state.themeColor;
 }
 
 // ---------- persistence ----------
@@ -971,6 +1384,7 @@ function loadSettings() {
   if (!JUDGE[state.judge]) state.judge = "lay";
   $("judgeSel").value = state.judge;
   updateJudgeUI();
+  state.themeColor = normHex(localStorage.getItem("cf_theme_color") || DEFAULT_THEME_COLOR);
   applyAppearance(localStorage.getItem("cf_theme") || "system");
 }
 function getKey() { return (localStorage.getItem("cf_key") || "").trim(); }
@@ -1387,7 +1801,7 @@ function applyJudge(s) {
   setBar("logic", s.logic); setBar("clarity", s.clarity);
   setBar("tone", s.tone); setBar("jargon", s.jargon);
   $("ovNum").textContent = s.overall;
-  $("ovNum").style.color = scoreColor(s.overall);
+  setRing($("scoreRing"), s.overall / 100, scoreColor(s.overall));
   state.scores.push(s.overall);
   const avg = Math.round(state.scores.reduce((a, b) => a + b, 0) / state.scores.length);
   $("ovAvg").textContent = "round average: " + avg + "  ·  " + state.scores.length + " answer" + (state.scores.length > 1 ? "s" : "");
@@ -1404,7 +1818,8 @@ function applyJudge(s) {
 }
 function resetJudge() {
   ["logic","clarity","tone","jargon"].forEach(k => { $("b-"+k).style.width = "0"; $("v-"+k).textContent = "–"; });
-  $("ovNum").textContent = "–"; $("ovNum").style.color = "var(--muted)";
+  $("ovNum").textContent = "–";
+  setRing($("scoreRing"), 0, "var(--muted)");
   $("ovAvg").textContent = "round average: –";
   $("tipBox").style.display = "none"; $("penalties").innerHTML = "";
 }
@@ -1539,10 +1954,24 @@ async function endRound(reason) {
 
 // ---------- timer ----------
 function fmtClock(s) { const m = Math.floor(s/60), r = s%60; return m + ":" + String(r).padStart(2,"0"); }
+// One helper drives both rings. The circumference lives in the markup's
+// stroke-dasharray, so the geometry is declared in exactly one place.
+function setRing(ringEl, pct, color) {
+  const c = ringEl.querySelector("circle.value");
+  const len = parseFloat(c.getAttribute("stroke-dasharray"));
+  c.style.strokeDashoffset = String(len * (1 - Math.max(0, Math.min(1, pct))));
+  if (color !== undefined) {
+    c.style.stroke = color || "";
+    ringEl.querySelector(".face .n").style.color = color || "";
+  }
+}
+
 function resetTimer(sec) {
   clearInterval(state.timerId); state.timerId = null;
-  state.timeLeft = sec; state.timerPaused = false;
-  $("clock").textContent = fmtClock(sec); $("clock").classList.remove("low");
+  state.timeLeft = sec; state.timeTotal = sec; state.timerPaused = false;
+  $("clock").textContent = fmtClock(sec);
+  $("clockRing").classList.remove("low");
+  setRing($("clockRing"), 1);
   $("timerBtn").textContent = "Pause";
 }
 function startTimer() {
@@ -1551,7 +1980,8 @@ function startTimer() {
     if (state.timerPaused) return;
     state.timeLeft--;
     $("clock").textContent = fmtClock(Math.max(0, state.timeLeft));
-    if (state.timeLeft <= 30) $("clock").classList.add("low");
+    setRing($("clockRing"), Math.max(0, state.timeLeft) / state.timeTotal);
+    if (state.timeLeft <= 30) $("clockRing").classList.add("low");
     if (state.timeLeft <= 0) {
       clearInterval(state.timerId); state.timerId = null;
       endRound("⏰ Time! " + FMT[state.fmt].cx + " is over.");
@@ -1698,6 +2128,12 @@ function updateMode() {
     ? "Answer, or fire back your own question… (Enter to send)"
     : "Answer the crossfire question… (Enter to send, Shift+Enter for newline)";
   document.querySelectorAll(".mode-btn").forEach(b => b.classList.toggle("active", b.dataset.mode === state.mode));
+  updateStageTitle();
+}
+// The serif heading over the transcript names the exercise in progress —
+// "Crossfire" / "Cross-Examination" / "Grand Cross" by format and mode.
+function updateStageTitle() {
+  $("stageTitle").textContent = state.mode === "grand" ? "Grand Cross" : FMT[state.fmt].cx;
 }
 function updateJudgeUI() {
   const j = JUDGE[state.judge];
@@ -1723,6 +2159,7 @@ function updatePills() {
   $("sidePill").textContent = state.side;
   $("sidePill").style.color = state.side === "Pro" ? "var(--pro)" : "var(--con)";
   $("timerNote").textContent = FMT[state.fmt].cx.toLowerCase() + " clock";
+  updateStageTitle();
 }
 
 // ---------- events ----------
@@ -1756,6 +2193,11 @@ $("themeSeg").addEventListener("click", (e) => {
   const b = e.target.closest("button"); if (!b) return;
   applyAppearance(b.dataset.appearance);
 });
+
+// The colour wheel repaints live while you drag ("input") but only commits to
+// storage when you settle on a colour ("change").
+$("themeColor").addEventListener("input", (e) => applyAppearance("custom", e.target.value, false));
+$("themeColor").addEventListener("change", (e) => applyAppearance("custom", e.target.value));
 
 $("judgeSel").addEventListener("change", (e) => {
   state.judge = e.target.value;
